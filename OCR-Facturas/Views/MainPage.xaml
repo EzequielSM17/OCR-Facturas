@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OCR_Facturas.ViewModels"
+             xmlns:components="clr-namespace:OCR_Facturas.Views.Components"
+             x:Class="OCR_Facturas.Views.MainPage"
+             x:DataType="vm:MainViewModel"
+             BackgroundColor="#121212">
+
+    <ScrollView>
+        <components:ScannerControl />
+    </ScrollView>
+
+</ContentPage>

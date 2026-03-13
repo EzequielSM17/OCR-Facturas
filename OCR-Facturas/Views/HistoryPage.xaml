@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OCR_Facturas.ViewModels"
+             xmlns:models="clr-namespace:OCR_Facturas.Models"
+             x:Class="OCR_Facturas.Views.HistoryPage"
+             x:DataType="vm:HistoryViewModel"
+             BackgroundColor="#121212">
+
+    <Grid RowDefinitions="Auto,*">
+
+        <Border Grid.Row="0" 
+                BackgroundColor="#1E1E1E" 
+                StrokeThickness="0" 
+                Margin="0,0,0,10"
+                Padding="20,30,20,25">
+            <Border.Shadow>
+                <Shadow Brush="Black" Offset="0,5" Opacity="0.5" />
+            </Border.Shadow>
+            <VerticalStackLayout Spacing="5">
+                <Label Text="GASTO ANUAL (Este Año)" TextColor="#888888" FontSize="12" FontAttributes="Bold" HorizontalOptions="Center" />
+                <Label Text="{Binding TotalYearly, StringFormat='{}{0:C2}'}" TextColor="#FACC15" FontSize="38" FontAttributes="Bold" HorizontalOptions="Center" />
+            </VerticalStackLayout>
+        </Border>
+
+        <ActivityIndicator Grid.Row="1" 
+                           IsRunning="{Binding IsLoading}" 
+                           IsVisible="{Binding IsLoading}" 
+                           Color="#FACC15" 
+                           HorizontalOptions="Center" VerticalOptions="Center" />
+
+        <CollectionView Grid.Row="1" 
+                        ItemsSource="{Binding GroupedInvoices}" 
+                        IsGrouped="True"
+                        SelectionMode="None"
+                        Margin="15,0,15,0">
+
+            <CollectionView.GroupHeaderTemplate>
+                <DataTemplate x:DataType="vm:InvoiceGroup">
+                    <Grid ColumnDefinitions="*,Auto" Padding="0,20,0,10">
+                        <Label Grid.Column="0" Text="{Binding MonthYear}" TextColor="White" FontSize="18" FontAttributes="Bold" VerticalOptions="End" />
+                        <Label Grid.Column="1" Text="{Binding GroupTotal, StringFormat='{}{0:C2}'}" TextColor="#FACC15" FontSize="16" FontAttributes="Bold" VerticalOptions="End" />
+                        <BoxView Grid.ColumnSpan="2" HeightRequest="1" Color="#333333" VerticalOptions="End" Margin="0,5,0,-5" />
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.GroupHeaderTemplate>
+
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:InvoiceDto">
+                    <Border BackgroundColor="#1E1E1E" Stroke="#333333" StrokeThickness="1" Margin="12,30,30,12" Padding="15" >
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="12" />
+                        </Border.StrokeShape>
+
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer 
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:HistoryViewModel}}, Path=VerDetalleCommand}" 
+                                CommandParameter="{Binding .}" />
+                        </Border.GestureRecognizers>
+
+                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="10" HeightRequest="100">
+
+                            <Label Grid.Row="0" Grid.Column="0" 
+                                   Text="{Binding MerchantName}" 
+                                   TextColor="White" FontAttributes="Bold" FontSize="16" 
+                                   LineBreakMode="TailTruncation" VerticalOptions="Center"/>
+
+                            <Label Grid.Row="1" Grid.Column="0" 
+                                   Text="{Binding IssueDate, StringFormat='{}{0:dd MMM yyyy}'}" 
+                                   TextColor="#888888" FontSize="13" VerticalOptions="Center"/>
+
+                            <Label Grid.Row="0" Grid.Column="1" 
+                                   Text="{Binding TotalAmount, StringFormat='{}{0:C2}'}" 
+                                   TextColor="#FACC15" FontAttributes="Bold" FontSize="16" 
+                                   HorizontalOptions="End" VerticalOptions="Center"/>
+
+                            
+                        </Grid>
+
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+
+            <CollectionView.EmptyView>
+                <VerticalStackLayout HorizontalOptions="Center" VerticalOptions="Center" Spacing="15" Margin="0,50,0,0">
+                    <Label Text="📭" FontSize="50" HorizontalOptions="Center"/>
+                    <Label Text="Aún no hay facturas guardadas." TextColor="#888888" FontSize="16" HorizontalOptions="Center"/>
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
+
+        </CollectionView>
+    </Grid>
+</ContentPage>

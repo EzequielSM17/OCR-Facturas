@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OCR_Facturas.ViewModels"
+             x:Class="OCR_Facturas.Views.SettingsPage"
+             x:DataType="vm:SettingsViewModel"
+             BackgroundColor="#121212">
+
+
+    <ScrollView>
+        <VerticalStackLayout Padding="30" Spacing="25" VerticalOptions="Center" Margin="0,40,0,0">
+
+            <Label Text="⚙️ Configuración" 
+                   FontSize="28" 
+                   FontAttributes="Bold" 
+                   TextColor="#FACC15" 
+                   HorizontalOptions="Center" />
+
+            <Label Text="Introduce tus credenciales de Azure Document Intelligence. Tus datos se guardarán encriptados en el dispositivo." 
+                   TextColor="#AAAAAA" 
+                   HorizontalTextAlignment="Center" 
+                   Margin="0,0,0,20"/>
+
+            <VerticalStackLayout Spacing="8">
+                <Label Text="Azure Endpoint (URL):" TextColor="White" FontAttributes="Bold"/>
+                <Border BackgroundColor="#1E1E1E" Stroke="#333333" StrokeThickness="1" Padding="15,5">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <Entry Text="{Binding AzureEndpoint}" 
+                           Placeholder="https://tu-recurso.cognitiveservices.azure.com/"
+                           PlaceholderColor="#555555"
+                           TextColor="White"
+                           ClearButtonVisibility="WhileEditing"/>
+                </Border>
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="8">
+                <Label Text="Azure API Key:" TextColor="White" FontAttributes="Bold"/>
+                <Border BackgroundColor="#1E1E1E" Stroke="#333333" StrokeThickness="1" Padding="15,5">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <Entry Text="{Binding AzureKey}" 
+                           IsPassword="True"
+                           Placeholder="Tu clave secreta"
+                           PlaceholderColor="#555555"
+                           TextColor="White"
+                           ClearButtonVisibility="WhileEditing"/>
+                </Border>
+            </VerticalStackLayout>
+            <VerticalStackLayout Spacing="8">
+                <Label Text="Conexión Supabase (PostgreSQL):" TextColor="White" FontAttributes="Bold"/>
+                <Border BackgroundColor="#1E1E1E" Stroke="#333333" StrokeThickness="1" Padding="15,5">
+                    <Border.StrokeShape>
+                        <RoundRectangle CornerRadius="10" />
+                    </Border.StrokeShape>
+                    <Entry Text="{Binding PostgresConnectionString}" 
+                           
+                           Placeholder="Host=db.xxx... Pooling=false;"
+                           PlaceholderColor="#555555"
+                           TextColor="White"
+                           ClearButtonVisibility="WhileEditing"/>
+                </Border>
+            </VerticalStackLayout>
+
+            <Button Text="💾 Guardar y Continuar" 
+                    Command="{Binding SaveSettingsCommand}" 
+                    BackgroundColor="#FACC15" 
+                    TextColor="#121212"
+                    FontAttributes="Bold" FontSize="16"
+                    CornerRadius="10" 
+                    HeightRequest="55"
+                    Margin="0,20,0,0"/>
+
+            <Button Text="❌ Cancelar" 
+                    Command="{Binding CloseCommand}" 
+                    BackgroundColor="Transparent" 
+                    TextColor="#888888"
+                    FontAttributes="Bold" FontSize="16"
+                    HeightRequest="50"/>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

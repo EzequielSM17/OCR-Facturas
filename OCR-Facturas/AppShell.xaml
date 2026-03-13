@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Shell
+    x:Class="OCR_Facturas.AppShell"
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:local="clr-namespace:OCR_Facturas"
+    xmlns:views="clr-namespace:OCR_Facturas.Views"
+    Shell.FlyoutBehavior="Disabled"
+    Shell.BackgroundColor="#121212"
+    Shell.ForegroundColor="#FACC15"
+    Shell.TitleColor="#FACC15"
+    
+    Shell.TabBarBackgroundColor="#1E1E1E"
+    Shell.TabBarTitleColor="#FACC15"
+    Shell.TabBarUnselectedColor="#888888"
+    Title="OCR_Facturas">
+    
+
+    <TabBar>
+        <Tab Title="Ajustes" Route="SettingsPage">
+            <ShellContent ContentTemplate="{DataTemplate views:SettingsPage}" />
+        </Tab>
+        <Tab Title="Escanear" Route="MainPage">
+            <ShellContent ContentTemplate="{DataTemplate views:MainPage}" />
+        </Tab>
+
+        <Tab Title="Historial" Route="HistoryPage">
+            <ShellContent ContentTemplate="{DataTemplate views:HistoryPage}" />
+        </Tab>
+
+        
+
+    </TabBar>
+
+</Shell>
