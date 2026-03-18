@@ -5,7 +5,8 @@ using OCR_Facturas.Services.Interface;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Text;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace OCR_Facturas.ViewModels
 {
@@ -17,7 +18,6 @@ namespace OCR_Facturas.ViewModels
         public InvoiceGroup(string monthYear, IEnumerable<InvoiceDto> invoices) : base(invoices)
         {
             MonthYear = monthYear;
-            // Calculamos el total de este mes automáticamente
             GroupTotal = invoices.Sum(i => i.TotalAmount);
         }
     }
@@ -26,12 +26,11 @@ namespace OCR_Facturas.ViewModels
     {
         private readonly IDatabaseService _dbService;
 
-        // Colección agrupada para el UI
         [ObservableProperty]
         private ObservableCollection<InvoiceGroup> _groupedInvoices = new();
 
         [ObservableProperty]
-        private decimal _totalYearly; // Total del año actual, por ejemplo
+        private decimal _totalYearly;
 
         [ObservableProperty]
         private bool _isLoading;
@@ -41,7 +40,6 @@ namespace OCR_Facturas.ViewModels
             _dbService = dbService;
         }
 
-        // Se llama cada vez que se entra a la pantalla de historial
         [RelayCommand]
         public async Task LoadHistoryAsync()
         {
@@ -50,12 +48,10 @@ namespace OCR_Facturas.ViewModels
             {
                 var invoices = await _dbService.GetAllInvoicesAsync();
 
-                // 1. Calcular el total del año actual
                 int currentYear = DateTime.Now.Year;
                 TotalYearly = invoices.Where(i => i.IssueDate.Year == currentYear)
                                       .Sum(i => i.TotalAmount);
 
-                // 2. Agrupar por Año y Mes
                 var query = invoices
                     .OrderByDescending(i => i.IssueDate)
                     .GroupBy(i => new { i.IssueDate.Year, i.IssueDate.Month })
@@ -65,10 +61,8 @@ namespace OCR_Facturas.ViewModels
                         dateName = char.ToUpper(dateName[0]) + dateName.Substring(1);
                         return new InvoiceGroup(dateName, g);
                     })
-                    // Es vital materializar la query aquí con ToList() antes de ir al MainThread
                     .ToList();
 
-                // 3. Actualizar la colección de la UI (¡Blindado para Windows!)
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
                     var newCollection = new ObservableCollection<InvoiceGroup>();
@@ -76,8 +70,6 @@ namespace OCR_Facturas.ViewModels
                     {
                         newCollection.Add(group);
                     }
-
-                    // Reemplazamos la lista completa en lugar de hacer .Clear()
                     GroupedInvoices = newCollection;
                 });
             }
@@ -89,21 +81,58 @@ namespace OCR_Facturas.ViewModels
             {
                 IsLoading = false;
             }
-        
-    }
+        }
+
         [RelayCommand]
         public async Task VerDetalleAsync(InvoiceDto facturaSeleccionada)
         {
             if (facturaSeleccionada == null) return;
 
-            // Pasamos el objeto entero de la factura a la nueva pantalla
             var parametros = new Dictionary<string, object>
-    {
-        { "Invoice", facturaSeleccionada }
-    };
+            {
+                { "Invoice", facturaSeleccionada }
+            };
 
-            // Navegamos a la pantalla de detalle
             await Shell.Current.GoToAsync(nameof(Views.InvoiceDetailPage), parametros);
+        }
+
+        // --- NUEVO COMANDO: ELIMINAR FACTURA ---
+        [RelayCommand]
+        public async Task EliminarFacturaAsync(InvoiceDto facturaSeleccionada)
+        {
+            if (facturaSeleccionada == null) return;
+
+            // 1. Mostrar Modal de Confirmación
+            bool confirmacion = await Shell.Current.DisplayAlert(
+                "Eliminar Factura",
+                $"¿Estás seguro de que deseas eliminar la factura de '{facturaSeleccionada.MerchantName}' por {facturaSeleccionada.TotalAmount:C}?",
+                "Sí, eliminar",
+                "Cancelar");
+
+            // 2. Si el usuario dice que sí, borramos y recargamos
+            if (confirmacion)
+            {
+                try
+                {
+                    IsLoading = true;
+
+                    // Borrar de la base de datos
+                    await _dbService.DeleteInvoiceAsync(facturaSeleccionada);
+
+                    // Recargar la lista visual para reflejar el cambio
+                    await LoadHistoryAsync();
+
+                    await Shell.Current.DisplayAlert("Éxito", "Factura eliminada correctamente.", "OK");
+                }
+                catch (Exception ex)
+                {
+                    await Shell.Current.DisplayAlert("Error", $"Fallo al eliminar: {ex.Message}", "OK");
+                }
+                finally
+                {
+                    IsLoading = false;
+                }
+            }
         }
     }
 }
