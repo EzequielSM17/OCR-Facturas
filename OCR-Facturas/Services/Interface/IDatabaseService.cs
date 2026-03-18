@@ -9,5 +9,7 @@ namespace OCR_Facturas.Services.Interface
     {
         Task SaveInvoiceAsync(InvoiceDto invoice);
         Task<IEnumerable<InvoiceDto>> GetAllInvoicesAsync();
+        Task UpdateInvoiceAsync(InvoiceDto invoice);
+        Task DeleteInvoiceAsync(InvoiceDto invoice);
     }
 }

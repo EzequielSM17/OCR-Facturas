@@ -49,5 +49,21 @@ namespace OCR_Facturas.Services
                 .OrderByDescending(i => i.IssueDate)
                 .ToListAsync();
         }
+        public async Task UpdateInvoiceAsync(InvoiceDto invoice)
+        {
+            using var db = CreateContext();
+
+            db.Invoices.Update(invoice);
+            await db.SaveChangesAsync();
+        }
+
+
+        public async Task DeleteInvoiceAsync(InvoiceDto invoice)
+        {
+            using var db = CreateContext();
+
+            db.Invoices.Remove(invoice);
+            await db.SaveChangesAsync();
+        }
     }
 }

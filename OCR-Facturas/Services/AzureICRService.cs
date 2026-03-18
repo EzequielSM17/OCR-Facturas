@@ -3,10 +3,13 @@ using Azure.AI.FormRecognizer.DocumentAnalysis;
 using OCR_Facturas.Models;
 using OCR_Facturas.Services.Interface;
 using System;
+using System.Globalization;
 using System.IO;
 using System.IO.Pipes;
 using System.Linq;
 using System.Threading.Tasks;
+using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace OCR_Facturas.Services
 {
@@ -19,10 +22,110 @@ namespace OCR_Facturas.Services
             _settings = settings;
         }
 
-        
-           
+        private decimal? GetDecimalFromField(DocumentField field)
+        {
+            if (field == null)
+                return null;
 
-            public async Task<InvoiceDto> ExtractInvoiceDataAsync(FileStream imageStream)
+            try
+            {
+                return field.FieldType switch
+                {
+                    DocumentFieldType.Double => (decimal)field.Value.AsDouble(),
+                    DocumentFieldType.Int64 => field.Value.AsInt64(),
+                    DocumentFieldType.Currency => (decimal)field.Value.AsCurrency().Amount,
+                    DocumentFieldType.String => TryParseDecimal(field.Value.AsString()),
+                    _ => null
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private string GetStringFromField(DocumentField field)
+        {
+            if (field == null)
+                return null;
+
+            try
+            {
+                return field.FieldType switch
+                {
+                    DocumentFieldType.String => field.Value.AsString(),
+                    DocumentFieldType.Double => field.Value.AsDouble().ToString(CultureInfo.InvariantCulture),
+                    DocumentFieldType.Int64 => field.Value.AsInt64().ToString(CultureInfo.InvariantCulture),
+                    DocumentFieldType.Currency => field.Value.AsCurrency().Amount.ToString(CultureInfo.InvariantCulture),
+                    _ => null
+                };
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private decimal? TryParseDecimal(string input)
+        {
+            if (string.IsNullOrWhiteSpace(input))
+                return null;
+
+            input = input.Trim();
+
+            // Intenta cultura española
+            if (decimal.TryParse(input, NumberStyles.Any, new CultureInfo("es-ES"), out var valueEs))
+                return valueEs;
+
+            // Intenta cultura invariante
+            if (decimal.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out var valueInv))
+                return valueInv;
+
+            // Limpieza básica: dejar solo dígitos, coma, punto y signo
+            var cleaned = Regex.Replace(input, @"[^\d,.\-]", "");
+
+            if (decimal.TryParse(cleaned, NumberStyles.Any, new CultureInfo("es-ES"), out valueEs))
+                return valueEs;
+
+            if (decimal.TryParse(cleaned, NumberStyles.Any, CultureInfo.InvariantCulture, out valueInv))
+                return valueInv;
+
+            return null;
+        }
+
+        private decimal? ExtraerCantidadDesdeTexto(string texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto))
+                return null;
+
+            // Ejemplos que cubre:
+            // "2 uds"
+            // "1,5 kg"
+            // "3 h"
+            // "12 x tornillo"
+            var match = Regex.Match(texto, @"(?<!\d)(\d+[.,]?\d*)\s*(uds?|unid(?:ades)?|kg|g|l|ml|h|hr|hrs|hora(?:s)?|u)?\b",
+                RegexOptions.IgnoreCase);
+
+            if (!match.Success)
+                return null;
+
+            return TryParseDecimal(match.Groups[1].Value);
+        }
+
+        private int? ExtraerPrimerNumeroEntero(string texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto))
+                return null;
+
+            var match = Regex.Match(texto, @"\d+");
+            if (!match.Success)
+                return null;
+
+            return int.TryParse(match.Value, out var value) ? value : null;
+        }
+
+
+        public async Task<InvoiceDto> ExtractInvoiceDataAsync(FileStream imageStream)
             {
                 // 1. Inicializamos tu objeto, listo para guardar en la base de datos
                 var invoiceDto = new InvoiceDto();
@@ -74,64 +177,105 @@ namespace OCR_Facturas.Services
                         invoiceDto.MerchantName = vendorName.Value.AsString();
                     }
 
-                    
+
 
                     // --- EXTRACCIÓN DE LA TABLA DE PRODUCTOS ---
-                    if (document.Fields.TryGetValue("Items", out DocumentField itemsField) && itemsField.FieldType == DocumentFieldType.List)
+                    if (document.Fields.TryGetValue("Items", out DocumentField itemsField) &&
+    itemsField.FieldType == DocumentFieldType.List)
+                    {
+                        foreach (DocumentField itemField in itemsField.Value.AsList())
                         {
-                            foreach (DocumentField itemField in itemsField.Value.AsList())
+                            if (itemField.FieldType != DocumentFieldType.Dictionary)
+                                continue;
+
+                            var itemDict = itemField.Value.AsDictionary();
+                            var invoiceItem = new InvoiceItemDto();
+
+                            decimal? amount = null;
+                            decimal? unitPrice = null;
+                            decimal? quantity = null;
+
+                            // Descripción
+                            if (itemDict.TryGetValue("Description", out DocumentField descField) &&
+                                descField.FieldType == DocumentFieldType.String)
                             {
-                                if (itemField.FieldType == DocumentFieldType.Dictionary)
-                                {
-                                    var itemDict = itemField.Value.AsDictionary();
-                                    var invoiceItem = new InvoiceItemDto();
-                                    // Descripción
-                                    if (itemDict.TryGetValue("Description", out DocumentField descField) && descField.FieldType == DocumentFieldType.String)
-                                        invoiceItem.Description = descField.Value.AsString();
+                                invoiceItem.Description = descField.Value.AsString();
+                            }
 
-                                // Cantidad
-                                if (itemDict.TryGetValue("Amount", out DocumentField amount))
-                                {
-                                    if (amount.FieldType == DocumentFieldType.Double)
-                                        invoiceItem.Quantity = amount.Value.AsDouble();
-                                    else if (amount.FieldType == DocumentFieldType.Currency)
-                                        invoiceItem.Quantity = amount.Value.AsCurrency().Amount;
-                                }
+                            // Cantidad
+                            if (itemDict.TryGetValue("Quantity", out DocumentField quantityField))
+                            {
+                                quantity = GetDecimalFromField(quantityField);
+                            }
 
-                                // Precio Unitario
-                                if (itemDict.TryGetValue("UnitPrice", out DocumentField unitPriceField))
-                                    {
-                                        if (unitPriceField.FieldType == DocumentFieldType.Double)
-                                            invoiceItem.UnitPrice = (decimal)unitPriceField.Value.AsDouble();
-                                        else if (unitPriceField.FieldType == DocumentFieldType.Currency)
-                                            invoiceItem.UnitPrice = (decimal)unitPriceField.Value.AsCurrency().Amount;
-                                    }
+                            // Precio unitario
+                            if (itemDict.TryGetValue("UnitPrice", out DocumentField unitPriceField))
+                            {
+                                unitPrice = GetDecimalFromField(unitPriceField);
+                            }
 
-                                    // Total de la línea (Amount)
-                                    if (itemDict.TryGetValue("Amount", out DocumentField amountField))
-                                    {
-                                        if (amountField.FieldType == DocumentFieldType.Double)
-                                            invoiceItem.TotalPrice = (decimal)amountField.Value.AsDouble();
-                                        else if (amountField.FieldType == DocumentFieldType.Currency)
-                                            invoiceItem.TotalPrice = (decimal)amountField.Value.AsCurrency().Amount;
-                                    }
-                                if (itemDict.TryGetValue("Tax", out DocumentField taxField) && taxField.FieldType == DocumentFieldType.String)
+                            // Total línea
+                            if (itemDict.TryGetValue("Amount", out DocumentField amountField))
+                            {
+                                amount = GetDecimalFromField(amountField);
+                            }
+
+                            // Impuesto
+                            if (itemDict.TryGetValue("Tax", out DocumentField taxField))
+                            {
+                                var taxValue = GetStringFromField(taxField);
+                                if (!string.IsNullOrWhiteSpace(taxValue))
                                 {
-                                    string tax = taxField.Value.AsString().Split(" ")[0];
-                                    invoiceItem.IvaAmount = int.Parse(tax);
-                                }
-                                // Solo añadimos a la base de datos si tiene texto o algún precio
-                                if (!string.IsNullOrEmpty(invoiceItem.Description) || invoiceItem.TotalPrice > 0)
-                                    {
-                                        invoiceDto.Items.Add(invoiceItem);
-                                    }
+                                    var taxNumber = ExtraerPrimerNumeroEntero(taxValue);
+                                    if (taxNumber.HasValue)
+                                        invoiceItem.IvaAmount = taxNumber.Value;
                                 }
                             }
+
+                            // Fallback de cantidad:
+                            // 1) usar campo Quantity
+                            // 2) si no viene, calcular Amount / UnitPrice
+                            // 3) si sigue sin salir, intentar sacarla de la descripción
+                            if (quantity.HasValue && quantity.Value > 0)
+                            {
+                                invoiceItem.Quantity = (double)quantity.Value;
+                            }
+                            else if (amount.HasValue && unitPrice.HasValue && unitPrice.Value > 0)
+                            {
+                                invoiceItem.Quantity = (double)decimal.Round(amount.Value / unitPrice.Value, 3);
+                            }
+                            else
+                            {
+                                var qtyFromDescription = ExtraerCantidadDesdeTexto(invoiceItem.Description);
+                                if (qtyFromDescription.HasValue)
+                                    invoiceItem.Quantity = (double)qtyFromDescription.Value;
+                            }
+
+                            if (unitPrice.HasValue)
+                                invoiceItem.UnitPrice = unitPrice.Value;
+
+                            if (amount.HasValue)
+                                invoiceItem.TotalPrice = amount.Value;
+
+                            // Si no vino Amount pero sí cantidad y precio unitario
+                            if (invoiceItem.TotalPrice <= 0 &&
+                                invoiceItem.Quantity > 0 &&
+                                invoiceItem.UnitPrice > 0)
+                            {
+                                invoiceItem.TotalPrice = (decimal)invoiceItem.Quantity * invoiceItem.UnitPrice;
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(invoiceItem.Description) || invoiceItem.TotalPrice > 0)
+                            {
+                                invoiceDto.Items.Add(invoiceItem);
+                            }
                         }
-                   
-                        
-                    
+                    }
+
+
+
                 }
+
             }
                 catch (Exception ex)
                 {
