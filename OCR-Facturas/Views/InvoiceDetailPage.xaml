@@ -4,28 +4,58 @@
              xmlns:vm="clr-namespace:OCR_Facturas.ViewModels"
              xmlns:models="clr-namespace:OCR_Facturas.Models"
              x:Class="OCR_Facturas.Views.InvoiceDetailPage"
-             x:DataType="vm:InvoiceDetailViewModel"
-             BackgroundColor="#121212">
+             x:DataType="vm:InvoiceDetailViewModel"         
+             BackgroundColor="#121212"
+             Title="Detalle de Factura">
 
     <Grid RowDefinitions="Auto,*">
 
         <Border Grid.Row="0" BackgroundColor="#1E1E1E" StrokeThickness="0" Padding="20" Margin="0,0,0,10">
-            <VerticalStackLayout Spacing="8">
-                <Label Text="{Binding Invoice.MerchantName}" TextColor="#FACC15" FontSize="22" FontAttributes="Bold" />
-                <Label Text="{Binding Invoice.IssueDate, StringFormat='Fecha: {0:dd/MM/yyyy}'}" TextColor="#AAAAAA" FontSize="14" />
+            <VerticalStackLayout Spacing="10">
+
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,-5">
+                    <Label Grid.Column="0" Text="Proveedor:" TextColor="#888888" FontSize="12" FontAttributes="Bold" VerticalOptions="End"/>
+
+                    <Button Grid.Column="1" Text="✏️ Editar" 
+                        Command="{Binding ToggleEditCommand}"
+                        IsVisible="{Binding IsReadOnly}"
+                        BackgroundColor="Transparent" 
+                        TextColor="#FACC15" 
+                        BorderColor="#FACC15" 
+                        BorderWidth="1"
+                        CornerRadius="8"
+                        FontAttributes="Bold" 
+                        HeightRequest="35" 
+                        Padding="15,0" 
+                        Margin="0,-10,-10,0"/>
+                </Grid>
+
+                <Label Text="{Binding Invoice.MerchantName}" IsVisible="{Binding IsReadOnly}" TextColor="#FACC15" FontSize="20" FontAttributes="Bold" />
+                <Entry Text="{Binding Invoice.MerchantName}" IsVisible="{Binding IsEditing}" TextColor="#FACC15" FontSize="20" FontAttributes="Bold" BackgroundColor="#2A2A2A" />
+
+                <Label Text="Fecha de Emisión:" TextColor="#888888" FontSize="12" FontAttributes="Bold" Margin="0,0,0,-5" />
+                <Label Text="{Binding Invoice.IssueDate, StringFormat='{}{0:dd/MM/yyyy}'}" IsVisible="{Binding IsReadOnly}" TextColor="White" />
+                <DatePicker Date="{Binding Invoice.IssueDate}" IsVisible="{Binding IsEditing}" TextColor="White" BackgroundColor="#2A2A2A" />
 
                 <BoxView HeightRequest="1" Color="#333333" Margin="0,10" />
 
                 <Grid ColumnDefinitions="*,*">
-                   
+                    <Label Grid.Column="0" Text="TOTAL A PAGAR:" TextColor="#FACC15" FontAttributes="Bold" FontSize="16" VerticalOptions="Center"/>
 
-                    <Label Grid.Column="1" Text="TOTAL:" TextColor="#FACC15" FontAttributes="Bold" FontSize="18" />
-                    <Label Grid.Column="1" Text="{Binding Invoice.TotalAmount, StringFormat='{}{0:C2}'}" TextColor="#FACC15" HorizontalOptions="End" FontAttributes="Bold" FontSize="18" />
+                    <Label Grid.Column="1" Text="{Binding TotalFacturaVisual, StringFormat='{}{0:C2}'}" 
+            TextColor="#FACC15" FontAttributes="Bold" FontSize="18" HorizontalOptions="End" VerticalOptions="Center"/>
+
                 </Grid>
+
+                <Button Text="💾 Guardar Cambios" 
+                        Command="{Binding GuardarCambiosCommand}"
+                        IsVisible="{Binding IsEditing}"
+                        BackgroundColor="#10B981" TextColor="White" 
+                        FontAttributes="Bold" CornerRadius="8" HeightRequest="50" Margin="0,15,0,0"/>
             </VerticalStackLayout>
         </Border>
 
-        <CollectionView Grid.Row="1" ItemsSource="{Binding Invoice.Items}" Margin="15,15,15,15">
+        <CollectionView Grid.Row="1" ItemsSource="{Binding Invoice.Items}" Margin="15,0,15,15">
 
             <CollectionView.Header>
                 <Label Text="Productos" TextColor="White" FontSize="18" FontAttributes="Bold" Margin="10,10,10,15"/>
@@ -33,23 +63,52 @@
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:InvoiceItemDto">
-                    <Border BackgroundColor="Transparent" Stroke="#333333" Padding="10,10,10,10" Margin="15,15,15,15" >
-                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" >
+                    <Border BackgroundColor="Transparent" Stroke="#333333" Padding="10" Margin="0,0,0,15">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="8"/>
+                        </Border.StrokeShape>
 
-                            <Label Grid.Row="0" Grid.Column="0" Text="{Binding Description}" TextColor="White" FontAttributes="Bold" LineBreakMode="TailTruncation" />
+                        <Grid ColumnDefinitions="*,90" RowDefinitions="Auto,Auto" RowSpacing="10" ColumnSpacing="10">
 
-                            <Label Grid.Row="1" Grid.Column="0" TextColor="#888888" FontSize="12">
-                                <Label.Text>
-                                    <MultiBinding StringFormat="{}Cant: {0} | Precio Und: {1:C2}">
-                                        <Binding Path="Quantity" />
-                                        <Binding Path="UnitPrice" />
-                                        
-                                        <Binding Path="IvaAmount" />
-                                    </MultiBinding>
-                                </Label.Text>
-                            </Label>
+                            <Label Grid.Row="0" Grid.Column="0" Text="{Binding Description}" 
+                                   IsVisible="{Binding Source={RelativeSource AncestorType={x:Type vm:InvoiceDetailViewModel}}, Path=IsReadOnly}" 
+                                   TextColor="White" FontAttributes="Bold" LineBreakMode="TailTruncation" VerticalOptions="Center"/>
+                            <Entry Grid.Row="0" Grid.Column="0" Text="{Binding Description}" 
+                                   IsVisible="{Binding Source={RelativeSource AncestorType={x:Type vm:InvoiceDetailViewModel}}, Path=IsEditing}" 
+                                   TextColor="White" FontAttributes="Bold" BackgroundColor="#2A2A2A" />
 
-                            <Label Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Text="{Binding TotalPrice, StringFormat='{}{0:C2}'}" TextColor="#FACC15" FontAttributes="Bold" VerticalOptions="Center" />
+                            <Label Grid.Row="0" Grid.Column="1" Text="{Binding TotalPrice, StringFormat='{}{0:C2}'}" 
+                                   IsVisible="{Binding Source={RelativeSource AncestorType={x:Type vm:InvoiceDetailViewModel}}}" 
+                                   TextColor="#FACC15" FontAttributes="Bold" HorizontalOptions="End" VerticalOptions="Center" />
+                            
+
+                            <HorizontalStackLayout Grid.Row="1" Grid.ColumnSpan="2" Spacing="10" VerticalOptions="Center">
+                                <Label Text="Cant:" TextColor="#888888" VerticalOptions="Center" FontSize="12"/>
+
+                                <Label Text="{Binding Quantity}" 
+                                       IsVisible="{Binding Source={RelativeSource AncestorType={x:Type vm:InvoiceDetailViewModel}}, Path=IsReadOnly}" 
+                                       TextColor="#888888" FontSize="12" VerticalOptions="Center"/>
+
+                                <Entry Text="{Binding Quantity}" 
+                                       IsVisible="{Binding Source={RelativeSource AncestorType={x:Type vm:InvoiceDetailViewModel}}, Path=IsEditing}" 
+                                       TextColor="White" Keyboard="Numeric" BackgroundColor="#2A2A2A" WidthRequest="60" FontSize="14">
+                                  
+                                </Entry>
+
+                                <Label Text="Precio Und:" TextColor="#888888" VerticalOptions="Center" FontSize="12" Margin="10,0,0,0"/>
+
+                                <Label Text="{Binding UnitPrice, StringFormat='{}{0:C2}'}" 
+                                   IsVisible="{Binding Source={RelativeSource AncestorType={x:Type vm:InvoiceDetailViewModel}}, Path=IsReadOnly}" 
+                                   TextColor="#888888" FontSize="12" VerticalOptions="Center"/>
+
+                                <Entry Text="{Binding UnitPrice}" 
+                                       IsVisible="{Binding Source={RelativeSource AncestorType={x:Type vm:InvoiceDetailViewModel}}, Path=IsEditing}" 
+                                       TextColor="White" Keyboard="Numeric" BackgroundColor="#2A2A2A" WidthRequest="80" FontSize="14">
+                                 
+                                </Entry>
+
+                            </HorizontalStackLayout>
+
                         </Grid>
                     </Border>
                 </DataTemplate>

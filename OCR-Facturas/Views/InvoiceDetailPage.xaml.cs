@@ -12,4 +12,5 @@ public partial class InvoiceDetailPage : ContentPage
 		InitializeComponent();
         BindingContext = viewModel;
     }
+
 }
