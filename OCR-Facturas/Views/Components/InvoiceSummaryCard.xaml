@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OCR_Facturas.ViewModels"
+             x:Class="OCR_Facturas.Views.Components.InvoiceSummaryCard"
+             x:DataType="vm:MainViewModel">
+
+    <Grid ColumnDefinitions="Auto,*"
+          RowDefinitions="Auto,Auto,Auto"
+          RowSpacing="12">
+        <Label Grid.Row="0" Grid.Column="0" Text="Proveedor:" TextColor="#888888" FontAttributes="Bold" Margin="0,0,15,0"/>
+        <Label Grid.Row="0" Grid.Column="1" Text="{Binding FacturaActual.MerchantName}" TextColor="White" FontAttributes="Bold" HorizontalOptions="End" LineBreakMode="TailTruncation"/>
+
+        <Label Grid.Row="1" Grid.Column="0" Text="Fecha:" TextColor="#888888" FontAttributes="Bold"/>
+        <Label Grid.Row="1" Grid.Column="1" Text="{Binding FacturaActual.IssueDate, StringFormat='{}{0:dd/MM/yyyy}'}" TextColor="White" HorizontalOptions="End"/>
+
+        <Label Grid.Row="2" Grid.Column="0" Text="TOTAL:" TextColor="#FACC15" FontAttributes="Bold" FontSize="16"/>
+        <Label Grid.Row="2" Grid.Column="1" Text="{Binding FacturaActual.TotalAmount, StringFormat='{}{0:C2}'}" TextColor="#FACC15" FontAttributes="Bold" FontSize="16" HorizontalOptions="End"/>
+    </Grid>
+</ContentView>

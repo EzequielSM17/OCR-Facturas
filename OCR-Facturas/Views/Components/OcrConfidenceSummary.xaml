@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OCR_Facturas.ViewModels"
+             x:Class="OCR_Facturas.Views.Components.OcrConfidenceSummary"
+             x:DataType="vm:MainViewModel">
+
+    <Border BackgroundColor="#181818"
+            Stroke="#333333"
+            StrokeThickness="1"
+            Padding="12">
+        <Border.StrokeShape>
+            <RoundRectangle CornerRadius="10"/>
+        </Border.StrokeShape>
+
+        <Grid ColumnDefinitions="*,Auto"
+              RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto"
+              RowSpacing="8">
+            <Label Grid.Row="0" Grid.Column="0" Text="Confianza media OCR:" TextColor="#AAAAAA" FontAttributes="Bold"/>
+            <Label Grid.Row="0" Grid.Column="1" Text="{Binding OcrAverageConfidenceText}" TextColor="{Binding OcrAverageConfidenceColor}" FontAttributes="Bold"/>
+
+            <Label Grid.Row="1" Grid.Column="0" Text="Confianza documento:" TextColor="#AAAAAA" FontAttributes="Bold"/>
+            <Label Grid.Row="1" Grid.Column="1" Text="{Binding OcrDocumentConfidenceText}" TextColor="{Binding OcrDocumentConfidenceColor}" FontAttributes="Bold"/>
+
+            <Label Grid.Row="2" Grid.Column="0" Text="Proveedor:" TextColor="#AAAAAA" FontAttributes="Bold"/>
+            <Label Grid.Row="2" Grid.Column="1" Text="{Binding MerchantNameConfidenceText}" TextColor="{Binding MerchantNameConfidenceColor}" FontAttributes="Bold"/>
+
+            <Label Grid.Row="3" Grid.Column="0" Text="Fecha:" TextColor="#AAAAAA" FontAttributes="Bold"/>
+            <Label Grid.Row="3" Grid.Column="1" Text="{Binding IssueDateConfidenceText}" TextColor="{Binding IssueDateConfidenceColor}" FontAttributes="Bold"/>
+
+            <Label Grid.Row="4" Grid.Column="0" Text="Total:" TextColor="#AAAAAA" FontAttributes="Bold"/>
+            <Label Grid.Row="4" Grid.Column="1" Text="{Binding TotalAmountConfidenceText}" TextColor="{Binding TotalAmountConfidenceColor}" FontAttributes="Bold"/>
+
+            <Label Grid.Row="5" Grid.Column="0" Text="Productos:" TextColor="#AAAAAA" FontAttributes="Bold"/>
+            <Label Grid.Row="5" Grid.Column="1" Text="{Binding ItemsConfidenceText}" TextColor="{Binding ItemsConfidenceColor}" FontAttributes="Bold"/>
+        </Grid>
+    </Border>
+</ContentView>

@@ -3,29 +3,63 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:models="clr-namespace:OCR_Facturas.Models"
              x:Class="OCR_Facturas.Views.Components.InvoiceItemCard"
-             x:DataType="models:InvoiceDto">
+             x:DataType="models:InvoiceItemDisplayDto">
 
-    
-    <Border Stroke="LightGray" 
-        StrokeThickness="1" 
-        Padding="15" 
-        Margin="10,10,10,10">
+    <Border BackgroundColor="#181818"
+            Stroke="#333333"
+            StrokeThickness="1"
+            Padding="12">
         <Border.StrokeShape>
-            <RoundRectangle CornerRadius="8" />
+            <RoundRectangle CornerRadius="10"/>
         </Border.StrokeShape>
-        <Border.Shadow>
-            <Shadow Brush="Black" Offset="0,2" Opacity="0.15" Radius="4" />
-        </Border.Shadow>
 
-        <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
-            <Label Grid.Row="0" Grid.Column="0" Text="{Binding MerchantName}" FontAttributes="Bold" FontSize="16" />
-            <Label Grid.Row="0" Grid.Column="1" Text="{Binding TotalAmount, StringFormat='{0:C}'}" 
-        FontAttributes="Bold" FontSize="16" TextColor="Green" />
+        <VerticalStackLayout Spacing="8">
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                <Label Grid.Row="0" Grid.Column="0"
+                       Text="{Binding Description}"
+                       TextColor="White"
+                       FontAttributes="Bold"
+                       LineBreakMode="TailTruncation"/>
 
-            <Label Grid.Row="1" Grid.Column="0" Text="{Binding IssueDate, StringFormat='{0:dd MMM yyyy}'}" 
-        FontSize="12" TextColor="Gray" Margin="0,5,0,0"/>
-            <Label Grid.Row="1" Grid.Column="1" Text="{Binding Items.Count, StringFormat='{0} items'}" 
-        FontSize="12" TextColor="Gray" Margin="0,5,0,0" HorizontalOptions="End"/>
-        </Grid>
+                <Label Grid.Row="0" Grid.Column="1"
+                       Text="{Binding AverageConfidenceText}"
+                       TextColor="{Binding ConfidenceColor}"
+                       FontAttributes="Bold"
+                       HorizontalOptions="End"/>
+
+                <Label Grid.Row="1" Grid.Column="0"
+                       TextColor="#888888"
+                       FontSize="12">
+                    <Label.Text>
+                        <MultiBinding StringFormat="{}Cant: {0} | Und: {1:C2}">
+                            <Binding Path="Quantity" />
+                            <Binding Path="UnitPrice" />
+                        </MultiBinding>
+                    </Label.Text>
+                </Label>
+
+                <Label Grid.Row="1" Grid.Column="1"
+                       Text="{Binding TotalPrice, StringFormat='{}{0:C2}'}"
+                       TextColor="White"
+                       HorizontalOptions="End"/>
+            </Grid>
+
+            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="4">
+                <Label Grid.Row="0" Grid.Column="0" Text="Descripción:" TextColor="#777777" FontSize="12"/>
+                <Label Grid.Row="0" Grid.Column="1" Text="{Binding DescriptionConfidenceText}" TextColor="#AAAAAA" FontSize="12"/>
+
+                <Label Grid.Row="1" Grid.Column="0" Text="Cantidad:" TextColor="#777777" FontSize="12"/>
+                <Label Grid.Row="1" Grid.Column="1" Text="{Binding QuantityConfidenceText}" TextColor="#AAAAAA" FontSize="12"/>
+
+                <Label Grid.Row="2" Grid.Column="0" Text="Precio unidad:" TextColor="#777777" FontSize="12"/>
+                <Label Grid.Row="2" Grid.Column="1" Text="{Binding UnitPriceConfidenceText}" TextColor="#AAAAAA" FontSize="12"/>
+
+                <Label Grid.Row="3" Grid.Column="0" Text="Total línea:" TextColor="#777777" FontSize="12"/>
+                <Label Grid.Row="3" Grid.Column="1" Text="{Binding TotalPriceConfidenceText}" TextColor="#AAAAAA" FontSize="12"/>
+
+                <Label Grid.Row="4" Grid.Column="0" Text="Impuesto:" TextColor="#777777" FontSize="12"/>
+                <Label Grid.Row="4" Grid.Column="1" Text="{Binding TaxConfidenceText}" TextColor="#AAAAAA" FontSize="12"/>
+            </Grid>
+        </VerticalStackLayout>
     </Border>
 </ContentView>

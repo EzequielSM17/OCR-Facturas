@@ -50,7 +50,7 @@
                 </Border>
             </VerticalStackLayout>
             <VerticalStackLayout Spacing="8">
-                <Label Text="Conexión Supabase (PostgreSQL):" TextColor="White" FontAttributes="Bold"/>
+                <Label Text="Conexión BBDD:" TextColor="White" FontAttributes="Bold"/>
                 <Border BackgroundColor="#1E1E1E" Stroke="#333333" StrokeThickness="1" Padding="15,5">
                     <Border.StrokeShape>
                         <RoundRectangle CornerRadius="10" />

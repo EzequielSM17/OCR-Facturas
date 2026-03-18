@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OCR_Facturas.ViewModels"
+             x:Class="OCR_Facturas.Views.Components.ImagePreviewCard"
+             x:DataType="vm:MainViewModel">
+
+    <Border Stroke="#333333"
+            StrokeThickness="2"
+            BackgroundColor="#1E1E1E"
+            Padding="0"
+            MinimumHeightRequest="350">
+        <Border.StrokeShape>
+            <RoundRectangle CornerRadius="15" />
+        </Border.StrokeShape>
+
+        <Grid>
+            <Image Source="{Binding PreviewImage}" Aspect="AspectFit" Margin="5"/>
+
+            <VerticalStackLayout HorizontalOptions="Center"
+                                 VerticalOptions="Center"
+                                 Spacing="10"
+                                 IsVisible="{Binding PreviewImage, Converter={StaticResource IsNullConverter}}">
+                <Label Text="📷" FontSize="40" HorizontalOptions="Center"/>
+                <Label Text="Ninguna imagen seleccionada"
+                       TextColor="#888888"
+                       FontAttributes="Bold"/>
+            </VerticalStackLayout>
+        </Grid>
+    </Border>
+</ContentView>

@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:OCR_Facturas.ViewModels"
              xmlns:models="clr-namespace:OCR_Facturas.Models"
+             xmlns:components="clr-namespace:OCR_Facturas.Views.Components"
              x:Class="OCR_Facturas.Views.HistoryPage"
              x:DataType="vm:HistoryViewModel"
              BackgroundColor="#121212">
@@ -47,51 +48,7 @@
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:InvoiceDto">
-                    <Border BackgroundColor="#1E1E1E" Stroke="#333333" StrokeThickness="1" Margin="12,12,12,12" Padding="15">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="12" />
-                        </Border.StrokeShape>
-
-                        <Border.GestureRecognizers>
-                            <TapGestureRecognizer 
-                                Command="{Binding Source={RelativeSource AncestorType={x:Type vm:HistoryViewModel}}, Path=VerDetalleCommand}" 
-                                CommandParameter="{Binding .}" />
-                        </Border.GestureRecognizers>
-
-                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" RowSpacing="10">
-
-                            <Label Grid.Row="0" Grid.Column="0" 
-                                   Text="{Binding MerchantName}" 
-                                   TextColor="White" FontAttributes="Bold" FontSize="16" 
-                                   LineBreakMode="TailTruncation" VerticalOptions="Center"/>
-
-                            <Label Grid.Row="1" Grid.Column="0" 
-                                   Text="{Binding IssueDate, StringFormat='{}{0:dd MMM yyyy}'}" 
-                                   TextColor="#888888" FontSize="13" VerticalOptions="Center"/>
-
-                            <Label Grid.Row="0" Grid.Column="1" 
-                                   Text="{Binding TotalAmount, StringFormat='{}{0:C2}'}" 
-                                   TextColor="#FACC15" FontAttributes="Bold" FontSize="16" 
-                                   HorizontalOptions="End" VerticalOptions="Center"/>
-
-                            <Button Grid.Row="1" Grid.Column="1" 
-                                    Text="Borrar" 
-                                    TextColor="#EF4444" 
-                                    BackgroundColor="Transparent"
-                                    FontAttributes="Bold" 
-                                    FontSize="12"
-                                    BorderColor="#EF4444" 
-                                    BorderWidth="1"
-                                    CornerRadius="8"
-                                    Padding="4,0,4,0"
-                                    HeightRequest="30"
-                                    HorizontalOptions="End"
-                                    Command="{Binding Source={RelativeSource AncestorType={x:Type vm:HistoryViewModel}}, Path=EliminarFacturaCommand}"
-                                    CommandParameter="{Binding .}"/>
-
-                        </Grid>
-
-                    </Border>
+                    <components:InvoiceHistoryCard />
                 </DataTemplate>
             </CollectionView.ItemTemplate>
 

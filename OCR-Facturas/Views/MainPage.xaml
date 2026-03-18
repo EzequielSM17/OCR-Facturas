@@ -8,7 +8,17 @@
              BackgroundColor="#121212">
 
     <ScrollView>
-        <components:ScannerControl />
+        <VerticalStackLayout Spacing="20" Padding="20">
+
+            <components:ImagePreviewCard />
+
+            <components:ImageSourceActions />
+
+            <components:ProcessingStatusView />
+
+            <components:InvoiceResultsView />
+
+        </VerticalStackLayout>
     </ScrollView>
 
 </ContentPage>

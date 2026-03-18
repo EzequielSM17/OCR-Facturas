@@ -3,6 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:OCR_Facturas.ViewModels"
              xmlns:models="clr-namespace:OCR_Facturas.Models"
+             xmlns:components="clr-namespace:OCR_Facturas.Views.Components"
              x:Class="OCR_Facturas.Views.InvoiceDetailPage"
              x:DataType="vm:InvoiceDetailViewModel"
              BackgroundColor="#121212">
@@ -33,30 +34,15 @@
 
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:InvoiceItemDto">
-                    <Border BackgroundColor="Transparent" Stroke="#333333" Padding="10,10,10,10" Margin="15,15,15,15" >
-                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto" >
-
-                            <Label Grid.Row="0" Grid.Column="0" Text="{Binding Description}" TextColor="White" FontAttributes="Bold" LineBreakMode="TailTruncation" />
-
-                            <Label Grid.Row="1" Grid.Column="0" TextColor="#888888" FontSize="12">
-                                <Label.Text>
-                                    <MultiBinding StringFormat="{}Cant: {0} | Precio Und: {1:C2}">
-                                        <Binding Path="Quantity" />
-                                        <Binding Path="UnitPrice" />
-                                        
-                                        <Binding Path="IvaAmount" />
-                                    </MultiBinding>
-                                </Label.Text>
-                            </Label>
-
-                            <Label Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" Text="{Binding TotalPrice, StringFormat='{}{0:C2}'}" TextColor="#FACC15" FontAttributes="Bold" VerticalOptions="Center" />
-                        </Grid>
-                    </Border>
+                    <components:InvoiceDetailItemCard />
                 </DataTemplate>
             </CollectionView.ItemTemplate>
 
             <CollectionView.EmptyView>
-                <Label Text="No se detectaron productos en esta factura." TextColor="#888888" HorizontalOptions="Center" Margin="0,30,0,0"/>
+                <Label Text="No se detectaron productos en esta factura."
+               TextColor="#888888"
+               HorizontalOptions="Center"
+               Margin="0,30,0,0"/>
             </CollectionView.EmptyView>
         </CollectionView>
 

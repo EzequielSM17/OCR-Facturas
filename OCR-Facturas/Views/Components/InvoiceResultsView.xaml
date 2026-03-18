@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OCR_Facturas.ViewModels"
+             xmlns:components="clr-namespace:OCR_Facturas.Views.Components"
+             x:Class="OCR_Facturas.Views.Components.InvoiceResultsView"
+             x:DataType="vm:MainViewModel">
+
+    <Border IsVisible="{Binding MostrarResultados}"
+            BackgroundColor="#1E1E1E"
+            Stroke="#FACC15"
+            StrokeThickness="1"
+            Padding="20"
+            Margin="0,10,0,20">
+        <Border.StrokeShape>
+            <RoundRectangle CornerRadius="15" />
+        </Border.StrokeShape>
+
+        <VerticalStackLayout Spacing="15">
+
+            <Label Text="📋 Resumen de la Factura"
+                   TextColor="#FACC15"
+                   FontAttributes="Bold"
+                   FontSize="18"
+                   HorizontalOptions="Center"/>
+
+            <BoxView HeightRequest="1" Color="#333333" Margin="0,0,0,5"/>
+
+            <components:OcrConfidenceSummary />
+
+            <components:InvoiceSummaryCard />
+
+            <BoxView HeightRequest="1" Color="#333333" Margin="0,5,0,0"/>
+
+            <components:InvoiceItemsList />
+
+            <Button Text="💾 Confirmar y Guardar"
+                    Command="{Binding GuardarFacturaCommand}"
+                    BackgroundColor="#10B981"
+                    TextColor="White"
+                    FontAttributes="Bold"
+                    CornerRadius="10"
+                    HeightRequest="55"
+                    Margin="0,15,0,0"/>
+        </VerticalStackLayout>
+    </Border>
+</ContentView>

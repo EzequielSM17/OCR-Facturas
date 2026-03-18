@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:OCR_Facturas.ViewModels"
+             x:Class="OCR_Facturas.Views.Components.ImageSourceActions"
+             x:DataType="vm:MainViewModel">
+
+    <VerticalStackLayout Spacing="15">
+        <Grid ColumnDefinitions="*,*" ColumnSpacing="15">
+            <Button Grid.Column="0"
+                    Text="📸 Cámara"
+                    Command="{Binding TakePhotoCommand}"
+                    BackgroundColor="#333333"
+                    TextColor="White"
+                    CornerRadius="10"
+                    HeightRequest="45" />
+
+            <Button Grid.Column="1"
+                    Text="🖼️ Galería"
+                    Command="{Binding PickPhotoCommand}"
+                    BackgroundColor="#333333"
+                    TextColor="White"
+                    CornerRadius="10"
+                    HeightRequest="45" />
+        </Grid>
+
+        <Button Text="✨ Extraer Datos"
+                Command="{Binding ExtractDataCommand}"
+                BackgroundColor="#FACC15"
+                TextColor="#121212"
+                FontAttributes="Bold"
+                FontSize="16"
+                CornerRadius="10"
+                HeightRequest="55"
+                IsEnabled="{Binding IsProcessing, Converter={StaticResource InvertedBoolConverter}}" />
+    </VerticalStackLayout>
+</ContentView>
