@@ -29,4 +29,5 @@ namespace OCR_Facturas.Models
 
         public decimal TotalPrice { get; set; }
     }
+
 }

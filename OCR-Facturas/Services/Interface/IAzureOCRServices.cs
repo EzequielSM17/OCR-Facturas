@@ -7,6 +7,6 @@ namespace OCR_Facturas.Services.Interface
 {
     public interface IAzureOcrService
     {
-        Task<InvoiceDto> ExtractInvoiceDataAsync(FileStream imageStream);
+        Task<InvoiceExtractionResultDto> ExtractInvoiceDataAsync(FileStream imageStream);
     }
 }

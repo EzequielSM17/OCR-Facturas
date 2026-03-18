@@ -1,16 +1,16 @@
-﻿using Azure;
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Npgsql;
-using OCR_Facturas.Models; // Añadido para que reconozca InvoiceDto
+using OCR_Facturas.Models;
 using OCR_Facturas.Services.Interface;
 using System;
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace OCR_Facturas.ViewModels
 {
+    
     public partial class MainViewModel : ObservableObject
     {
         private readonly IAzureOcrService _ocrService;
@@ -26,18 +26,37 @@ namespace OCR_Facturas.ViewModels
         [ObservableProperty]
         private string _statusMessage = "Listo para escanear";
 
-        // --- NUEVAS PROPIEDADES PARA LA UI MODERNA ---
         [ObservableProperty]
         private InvoiceDto _facturaActual;
 
         [ObservableProperty]
+        private InvoiceOcrMetricsDto _ocrMetricsActual;
+
+        [ObservableProperty]
         private bool _mostrarResultados;
+
+        [ObservableProperty]
+        private ObservableCollection<InvoiceItemDisplayDto> _itemsDisplay = new();
 
         public MainViewModel(IAzureOcrService ocrService, IDatabaseService dbService)
         {
             _ocrService = ocrService;
             _dbService = dbService;
         }
+
+        public string OcrAverageConfidenceText => FormatPercent(OcrMetricsActual?.AverageConfidence);
+        public string OcrDocumentConfidenceText => FormatPercent(OcrMetricsActual?.DocumentConfidence);
+        public string MerchantNameConfidenceText => FormatPercent(OcrMetricsActual?.MerchantName?.Confidence);
+        public string IssueDateConfidenceText => FormatPercent(OcrMetricsActual?.IssueDate?.Confidence);
+        public string TotalAmountConfidenceText => FormatPercent(OcrMetricsActual?.TotalAmount?.Confidence);
+        public string ItemsConfidenceText => FormatPercent(OcrMetricsActual?.Items?.Confidence);
+
+        public Color OcrAverageConfidenceColor => GetConfidenceColor(OcrMetricsActual?.AverageConfidence ?? 0);
+        public Color OcrDocumentConfidenceColor => GetConfidenceColor(OcrMetricsActual?.DocumentConfidence ?? 0);
+        public Color MerchantNameConfidenceColor => GetConfidenceColor(OcrMetricsActual?.MerchantName?.Confidence ?? 0);
+        public Color IssueDateConfidenceColor => GetConfidenceColor(OcrMetricsActual?.IssueDate?.Confidence ?? 0);
+        public Color TotalAmountConfidenceColor => GetConfidenceColor(OcrMetricsActual?.TotalAmount?.Confidence ?? 0);
+        public Color ItemsConfidenceColor => GetConfidenceColor(OcrMetricsActual?.Items?.Confidence ?? 0);
 
         [RelayCommand]
         public async Task PickPhotoAsync()
@@ -84,9 +103,12 @@ namespace OCR_Facturas.ViewModels
 
             try
             {
-                // Limpiamos resultados anteriores al cargar foto nueva
                 MostrarResultados = false;
                 FacturaActual = null;
+                OcrMetricsActual = null;
+                ItemsDisplay.Clear();
+
+                RaiseConfidenceProperties();
 
                 var tempDirectory = FileSystem.CacheDirectory;
                 _localFilePath = Path.Combine(tempDirectory, photo.FileName);
@@ -106,7 +128,6 @@ namespace OCR_Facturas.ViewModels
             }
         }
 
-        // PASO 1: EXTRAER DATOS (No guarda en DB)
         [RelayCommand]
         public async Task ExtractDataAsync()
         {
@@ -118,19 +139,21 @@ namespace OCR_Facturas.ViewModels
 
             IsProcessing = true;
             StatusMessage = "Extrayendo datos con IA...";
-            MostrarResultados = false; // Ocultamos la tarjeta mientras carga
+            MostrarResultados = false;
 
             try
             {
                 using var stream = File.OpenRead(_localFilePath);
 
-                // Solo leemos, no guardamos todavía
-                var invoiceData = await _ocrService.ExtractInvoiceDataAsync(stream);
+                var extractionResult = await _ocrService.ExtractInvoiceDataAsync(stream);
 
-                // Mostramos los datos en la tarjeta
-                FacturaActual = invoiceData;
+                FacturaActual = extractionResult.Invoice;
+                OcrMetricsActual = extractionResult.OcrMetrics;
+
+                BuildItemsDisplay();
+                RaiseConfidenceProperties();
+
                 MostrarResultados = true;
-
                 StatusMessage = "Datos extraídos. Por favor, revisa y confirma.";
             }
             catch (Exception ex)
@@ -145,7 +168,6 @@ namespace OCR_Facturas.ViewModels
             }
         }
 
-        // PASO 2: GUARDAR EN BASE DE DATOS
         [RelayCommand]
         public async Task GuardarFacturaAsync()
         {
@@ -160,17 +182,20 @@ namespace OCR_Facturas.ViewModels
 
                 await ShowAlertAsync("¡Éxito!", $"Factura guardada. Total: {FacturaActual.TotalAmount:C}");
 
-                // Limpiamos la UI y la caché para la siguiente factura
                 PreviewImage = null;
                 MostrarResultados = false;
                 FacturaActual = null;
+                OcrMetricsActual = null;
+                ItemsDisplay.Clear();
+
+                RaiseConfidenceProperties();
 
                 if (File.Exists(_localFilePath))
                 {
                     File.Delete(_localFilePath);
                 }
-                _localFilePath = null;
 
+                _localFilePath = null;
                 StatusMessage = "Listo para escanear";
             }
             catch (Exception ex)
@@ -183,6 +208,73 @@ namespace OCR_Facturas.ViewModels
             {
                 IsProcessing = false;
             }
+        }
+
+        private void BuildItemsDisplay()
+        {
+            ItemsDisplay.Clear();
+
+            if (FacturaActual?.Items == null || OcrMetricsActual?.ItemMetrics == null)
+                return;
+
+            var count = Math.Min(FacturaActual.Items.Count, OcrMetricsActual.ItemMetrics.Count);
+
+            for (int i = 0; i < count; i++)
+            {
+                var item = FacturaActual.Items[i];
+                var metric = OcrMetricsActual.ItemMetrics[i];
+
+                ItemsDisplay.Add(new InvoiceItemDisplayDto
+                {
+                    Description = item.Description,
+                    Quantity = item.Quantity,
+                    UnitPrice = item.UnitPrice,
+                    TotalPrice = item.TotalPrice,
+                    IvaAmount = (int)item.IvaAmount,
+
+                    AverageConfidence = metric.AverageConfidence,
+                    DescriptionConfidence = metric.Description?.Confidence ?? 0,
+                    QuantityConfidence = metric.Quantity?.Confidence ?? 0,
+                    UnitPriceConfidence = metric.UnitPrice?.Confidence ?? 0,
+                    TotalPriceConfidence = metric.TotalPrice?.Confidence ?? 0,
+                    TaxConfidence = metric.Tax?.Confidence ?? 0,
+
+                    QuantityInferred = metric.Quantity?.Inferred ?? false
+                });
+            }
+        }
+
+        private void RaiseConfidenceProperties()
+        {
+            OnPropertyChanged(nameof(OcrAverageConfidenceText));
+            OnPropertyChanged(nameof(OcrDocumentConfidenceText));
+            OnPropertyChanged(nameof(MerchantNameConfidenceText));
+            OnPropertyChanged(nameof(IssueDateConfidenceText));
+            OnPropertyChanged(nameof(TotalAmountConfidenceText));
+            OnPropertyChanged(nameof(ItemsConfidenceText));
+
+            OnPropertyChanged(nameof(OcrAverageConfidenceColor));
+            OnPropertyChanged(nameof(OcrDocumentConfidenceColor));
+            OnPropertyChanged(nameof(MerchantNameConfidenceColor));
+            OnPropertyChanged(nameof(IssueDateConfidenceColor));
+            OnPropertyChanged(nameof(TotalAmountConfidenceColor));
+            OnPropertyChanged(nameof(ItemsConfidenceColor));
+        }
+
+        private string FormatPercent(decimal? value)
+        {
+            return value.HasValue ? $"{value.Value:0.##}%" : "-- %";
+        }
+
+        private Color GetConfidenceColor(decimal confidence)
+        {
+            if (confidence >= 80)
+                return Color.FromArgb("#10B981");
+
+            if (confidence >= 50)
+                return Color.FromArgb("#FACC15");
+
+            return Color.FromArgb("#EF4444");
         }
 
         private Task ShowAlertAsync(string title, string message)

@@ -3,13 +3,12 @@ using Azure.AI.FormRecognizer.DocumentAnalysis;
 using OCR_Facturas.Models;
 using OCR_Facturas.Services.Interface;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.IO.Pipes;
 using System.Linq;
-using System.Threading.Tasks;
-using System.Globalization;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace OCR_Facturas.Services
 {
@@ -20,6 +19,47 @@ namespace OCR_Facturas.Services
         public AzureOcrService(AppSettings settings)
         {
             _settings = settings;
+        }
+
+        private decimal ToPercent(float confidence)
+        {
+            return Math.Round((decimal)confidence * 100m, 2);
+        }
+
+        private decimal AverageOrZero(IEnumerable<decimal> values)
+        {
+            var list = values?.Where(x => x > 0).ToList() ?? new List<decimal>();
+            return list.Count == 0 ? 0 : Math.Round(list.Average(), 2);
+        }
+
+        private InvoiceFieldConfidenceDto CreateFieldConfidence(DocumentField field, bool inferred = false)
+        {
+            if (field == null)
+            {
+                return new InvoiceFieldConfidenceDto
+                {
+                    Found = false,
+                    Confidence = 0,
+                    Inferred = inferred
+                };
+            }
+
+            return new InvoiceFieldConfidenceDto
+            {
+                Found = true,
+                Confidence = ToPercent((float)field.Confidence),
+                Inferred = inferred
+            };
+        }
+
+        private InvoiceFieldConfidenceDto CreateInferredFieldConfidence()
+        {
+            return new InvoiceFieldConfidenceDto
+            {
+                Found = true,
+                Confidence = 0,
+                Inferred = true
+            };
         }
 
         private decimal? GetDecimalFromField(DocumentField field)
@@ -73,15 +113,12 @@ namespace OCR_Facturas.Services
 
             input = input.Trim();
 
-            // Intenta cultura española
             if (decimal.TryParse(input, NumberStyles.Any, new CultureInfo("es-ES"), out var valueEs))
                 return valueEs;
 
-            // Intenta cultura invariante
             if (decimal.TryParse(input, NumberStyles.Any, CultureInfo.InvariantCulture, out var valueInv))
                 return valueInv;
 
-            // Limpieza básica: dejar solo dígitos, coma, punto y signo
             var cleaned = Regex.Replace(input, @"[^\d,.\-]", "");
 
             if (decimal.TryParse(cleaned, NumberStyles.Any, new CultureInfo("es-ES"), out valueEs))
@@ -98,12 +135,9 @@ namespace OCR_Facturas.Services
             if (string.IsNullOrWhiteSpace(texto))
                 return null;
 
-            // Ejemplos que cubre:
-            // "2 uds"
-            // "1,5 kg"
-            // "3 h"
-            // "12 x tornillo"
-            var match = Regex.Match(texto, @"(?<!\d)(\d+[.,]?\d*)\s*(uds?|unid(?:ades)?|kg|g|l|ml|h|hr|hrs|hora(?:s)?|u)?\b",
+            var match = Regex.Match(
+                texto,
+                @"(?<!\d)(\d+[.,]?\d*)\s*(uds?|unid(?:ades)?|kg|g|l|ml|h|hr|hrs|hora(?:s)?|u)?\b",
                 RegexOptions.IgnoreCase);
 
             if (!match.Success)
@@ -124,64 +158,83 @@ namespace OCR_Facturas.Services
             return int.TryParse(match.Value, out var value) ? value : null;
         }
 
+        public async Task<InvoiceExtractionResultDto> ExtractInvoiceDataAsync(FileStream imageStream)
+        {
+            var resultDto = new InvoiceExtractionResultDto();
+            var invoiceDto = resultDto.Invoice;
+            var metricsDto = resultDto.OcrMetrics;
 
-        public async Task<InvoiceDto> ExtractInvoiceDataAsync(FileStream imageStream)
+            try
             {
-                // 1. Inicializamos tu objeto, listo para guardar en la base de datos
-                var invoiceDto = new InvoiceDto();
+                var credential = new AzureKeyCredential(_settings.AzureKey);
+                var client = new DocumentAnalysisClient(new Uri(_settings.AzureEndpoint), credential);
 
-                try
+                AnalyzeDocumentOperation operation =
+                    await client.AnalyzeDocumentAsync(WaitUntil.Completed, "prebuilt-invoice", imageStream);
+
+                AnalyzeResult result = operation.Value;
+
+                if (result.Documents.Count > 0)
                 {
-                    // 2. Creamos el cliente exactamente como tu compañero
-                    var credential = new AzureKeyCredential(_settings.AzureKey);
-                    var client = new DocumentAnalysisClient(new Uri(_settings.AzureEndpoint), credential);
+                    AnalyzedDocument document = result.Documents[0];
 
-                    // 3. Llamamos al modelo "prebuilt-invoice"
-                    AnalyzeDocumentOperation operation = await client.AnalyzeDocumentAsync(WaitUntil.Completed, "prebuilt-invoice", imageStream);
-                    AnalyzeResult result = operation.Value;
+                    metricsDto.DocumentConfidence = ToPercent(document.Confidence);
 
-                    if (result.Documents.Count > 0)
+                    invoiceDto.LocalImagePath = Path.GetFileName(imageStream?.Name);
+
+                    var globalConfidences = new List<decimal>();
+
+                    // Fecha
+                    if (document.Fields.TryGetValue("InvoiceDate", out DocumentField dateField) &&
+                        dateField.FieldType == DocumentFieldType.Date)
                     {
-                        AnalyzedDocument document = result.Documents[0];
+                        var extractedDate = dateField.Value.AsDate().DateTime;
+                        invoiceDto.IssueDate = DateTime.SpecifyKind(extractedDate, DateTimeKind.Utc);
 
-                    // --- EXTRACCIÓN DE DATOS GENERALES ---
-
-                    
-                        invoiceDto.LocalImagePath = Path.GetFileName(imageStream?.Name);
-                    
-                    
-
-                        // Fecha (InvoiceDate -> IssueDate) - Con el truco UTC para PostgreSQL
-                        if (document.Fields.TryGetValue("InvoiceDate", out DocumentField dateField) && dateField.FieldType == DocumentFieldType.Date)
-                        {
-                            var extractedDate = dateField.Value.AsDate().DateTime;
-                            invoiceDto.IssueDate = DateTime.SpecifyKind(extractedDate, DateTimeKind.Utc);
-                        }
-                        else
-                        {
-                            invoiceDto.IssueDate = DateTime.UtcNow; // Fecha de seguridad por si no hay fecha en el papel
-                        }
-
-                        // Total a Pagar (InvoiceTotal -> TotalAmount) - Usando el truco Currency de tu compañero
-                        if (document.Fields.TryGetValue("InvoiceTotal", out DocumentField totalField))
-                        {
-                            if (totalField.FieldType == DocumentFieldType.Double)
-                                invoiceDto.TotalAmount = (decimal)totalField.Value.AsDouble();
-                            else if (totalField.FieldType == DocumentFieldType.Currency)
-                                invoiceDto.TotalAmount = (decimal)totalField.Value.AsCurrency().Amount;
-                        }
-
-                    // Subtotal (Base Imponible)
-                    if (document.Fields.TryGetValue("VendorName", out DocumentField vendorName) && vendorName.FieldType == DocumentFieldType.String)
+                        metricsDto.IssueDate = CreateFieldConfidence(dateField);
+                        globalConfidences.Add(metricsDto.IssueDate.Confidence);
+                    }
+                    else
                     {
-                        invoiceDto.MerchantName = vendorName.Value.AsString();
+                        invoiceDto.IssueDate = DateTime.UtcNow;
+                        metricsDto.IssueDate = new InvoiceFieldConfidenceDto { Found = false };
                     }
 
+                    // Total factura
+                    if (document.Fields.TryGetValue("InvoiceTotal", out DocumentField totalField))
+                    {
+                        if (totalField.FieldType == DocumentFieldType.Double)
+                            invoiceDto.TotalAmount = (decimal)totalField.Value.AsDouble();
+                        else if (totalField.FieldType == DocumentFieldType.Currency)
+                            invoiceDto.TotalAmount = (decimal)totalField.Value.AsCurrency().Amount;
 
+                        metricsDto.TotalAmount = CreateFieldConfidence(totalField);
+                        globalConfidences.Add(metricsDto.TotalAmount.Confidence);
+                    }
+                    else
+                    {
+                        metricsDto.TotalAmount = new InvoiceFieldConfidenceDto { Found = false };
+                    }
 
-                    // --- EXTRACCIÓN DE LA TABLA DE PRODUCTOS ---
+                    // Proveedor
+                    if (document.Fields.TryGetValue("VendorName", out DocumentField vendorName) &&
+                        vendorName.FieldType == DocumentFieldType.String)
+                    {
+                        invoiceDto.MerchantName = vendorName.Value.AsString();
+
+                        metricsDto.MerchantName = CreateFieldConfidence(vendorName);
+                        globalConfidences.Add(metricsDto.MerchantName.Confidence);
+                    }
+                    else
+                    {
+                        metricsDto.MerchantName = new InvoiceFieldConfidenceDto { Found = false };
+                    }
+
+                    // Items
+                    var itemAverageConfidences = new List<decimal>();
+
                     if (document.Fields.TryGetValue("Items", out DocumentField itemsField) &&
-    itemsField.FieldType == DocumentFieldType.List)
+                        itemsField.FieldType == DocumentFieldType.List)
                     {
                         foreach (DocumentField itemField in itemsField.Value.AsList())
                         {
@@ -190,6 +243,13 @@ namespace OCR_Facturas.Services
 
                             var itemDict = itemField.Value.AsDictionary();
                             var invoiceItem = new InvoiceItemDto();
+
+                            var itemMetrics = new InvoiceItemOcrMetricsDto
+                            {
+                                Index = invoiceDto.Items.Count
+                            };
+
+                            var itemConfidences = new List<decimal>();
 
                             decimal? amount = null;
                             decimal? unitPrice = null;
@@ -200,24 +260,48 @@ namespace OCR_Facturas.Services
                                 descField.FieldType == DocumentFieldType.String)
                             {
                                 invoiceItem.Description = descField.Value.AsString();
+                                itemMetrics.Description = CreateFieldConfidence(descField);
+                                itemConfidences.Add(itemMetrics.Description.Confidence);
+                            }
+                            else
+                            {
+                                itemMetrics.Description = new InvoiceFieldConfidenceDto { Found = false };
                             }
 
                             // Cantidad
                             if (itemDict.TryGetValue("Quantity", out DocumentField quantityField))
                             {
                                 quantity = GetDecimalFromField(quantityField);
+                                itemMetrics.Quantity = CreateFieldConfidence(quantityField);
+                                itemConfidences.Add(itemMetrics.Quantity.Confidence);
+                            }
+                            else
+                            {
+                                itemMetrics.Quantity = new InvoiceFieldConfidenceDto { Found = false };
                             }
 
                             // Precio unitario
                             if (itemDict.TryGetValue("UnitPrice", out DocumentField unitPriceField))
                             {
                                 unitPrice = GetDecimalFromField(unitPriceField);
+                                itemMetrics.UnitPrice = CreateFieldConfidence(unitPriceField);
+                                itemConfidences.Add(itemMetrics.UnitPrice.Confidence);
+                            }
+                            else
+                            {
+                                itemMetrics.UnitPrice = new InvoiceFieldConfidenceDto { Found = false };
                             }
 
                             // Total línea
                             if (itemDict.TryGetValue("Amount", out DocumentField amountField))
                             {
                                 amount = GetDecimalFromField(amountField);
+                                itemMetrics.TotalPrice = CreateFieldConfidence(amountField);
+                                itemConfidences.Add(itemMetrics.TotalPrice.Confidence);
+                            }
+                            else
+                            {
+                                itemMetrics.TotalPrice = new InvoiceFieldConfidenceDto { Found = false };
                             }
 
                             // Impuesto
@@ -230,12 +314,16 @@ namespace OCR_Facturas.Services
                                     if (taxNumber.HasValue)
                                         invoiceItem.IvaAmount = taxNumber.Value;
                                 }
+
+                                itemMetrics.Tax = CreateFieldConfidence(taxField);
+                                itemConfidences.Add(itemMetrics.Tax.Confidence);
+                            }
+                            else
+                            {
+                                itemMetrics.Tax = new InvoiceFieldConfidenceDto { Found = false };
                             }
 
-                            // Fallback de cantidad:
-                            // 1) usar campo Quantity
-                            // 2) si no viene, calcular Amount / UnitPrice
-                            // 3) si sigue sin salir, intentar sacarla de la descripción
+                            // Cantidad con fallback
                             if (quantity.HasValue && quantity.Value > 0)
                             {
                                 invoiceItem.Quantity = (double)quantity.Value;
@@ -243,12 +331,16 @@ namespace OCR_Facturas.Services
                             else if (amount.HasValue && unitPrice.HasValue && unitPrice.Value > 0)
                             {
                                 invoiceItem.Quantity = (double)decimal.Round(amount.Value / unitPrice.Value, 3);
+                                itemMetrics.Quantity = CreateInferredFieldConfidence();
                             }
                             else
                             {
                                 var qtyFromDescription = ExtraerCantidadDesdeTexto(invoiceItem.Description);
                                 if (qtyFromDescription.HasValue)
+                                {
                                     invoiceItem.Quantity = (double)qtyFromDescription.Value;
+                                    itemMetrics.Quantity = CreateInferredFieldConfidence();
+                                }
                             }
 
                             if (unitPrice.HasValue)
@@ -257,7 +349,6 @@ namespace OCR_Facturas.Services
                             if (amount.HasValue)
                                 invoiceItem.TotalPrice = amount.Value;
 
-                            // Si no vino Amount pero sí cantidad y precio unitario
                             if (invoiceItem.TotalPrice <= 0 &&
                                 invoiceItem.Quantity > 0 &&
                                 invoiceItem.UnitPrice > 0)
@@ -265,30 +356,39 @@ namespace OCR_Facturas.Services
                                 invoiceItem.TotalPrice = (decimal)invoiceItem.Quantity * invoiceItem.UnitPrice;
                             }
 
+                            itemMetrics.AverageConfidence = AverageOrZero(itemConfidences);
+
                             if (!string.IsNullOrWhiteSpace(invoiceItem.Description) || invoiceItem.TotalPrice > 0)
                             {
                                 invoiceDto.Items.Add(invoiceItem);
+                                metricsDto.ItemMetrics.Add(itemMetrics);
+
+                                if (itemMetrics.AverageConfidence > 0)
+                                    itemAverageConfidences.Add(itemMetrics.AverageConfidence);
                             }
                         }
                     }
 
+                    metricsDto.Items = new InvoiceFieldConfidenceDto
+                    {
+                        Found = metricsDto.ItemMetrics.Count > 0,
+                        Confidence = AverageOrZero(itemAverageConfidences),
+                        Inferred = false
+                    };
 
+                    if (metricsDto.Items.Confidence > 0)
+                        globalConfidences.Add(metricsDto.Items.Confidence);
 
+                    metricsDto.AverageConfidence = AverageOrZero(globalConfidences);
                 }
-
             }
-                catch (Exception ex)
-                {
-                    // Mostramos el error en consola para que no se oculte
-                    Console.WriteLine($"Error crítico en OCR: {ex.Message}");
-                    throw; // Dejamos que el ViewModel maneje el error y muestre la alerta
-                }
-
-                return invoiceDto;
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error crítico en OCR: {ex.Message}");
+                throw;
             }
 
-        
+            return resultDto;
+        }
     }
-    }
-
-
+}
